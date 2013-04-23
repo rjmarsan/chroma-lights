@@ -1,3 +1,5 @@
+#include <SerialCommand.h>
+
 #define clockpin 13 // CI
 #define enablepin 10 // EI
 #define latchpin 9 // LI
@@ -10,6 +12,8 @@ int SB_CommandMode;
 int SB_RedCommand;
 int SB_GreenCommand;
 int SB_BlueCommand;
+
+SerialCommand sCmd;
  
 void setup() {
  
@@ -27,11 +31,12 @@ void setup() {
      setLED(i, 1023, 1023, 1023);
    }
    WriteLEDArray();
-   
-   
-   anim1_setup();
+  
+   setupSerialCommands();
+   setupAnimations();
 }
- 
+
+/** LIGHTS API **/
 void SB_SendPacket() {
  
     if (SB_CommandMode == B01) {
@@ -82,17 +87,76 @@ void setLED(byte LED, int red, int green, int blue)
   LEDChannels[LED][2] = blue;
 
 }
+/** LIGHTS API DONE **/
 
 
 
 
+
+
+
+
+
+
+/** MAIN CODE **/
+
+boolean lightison = true;
+int current_animation = 0;
+void(*animations[3])() = {
+  anim1_update,
+  anim2_update,
+};
+
+void setupSerialCommands() {
+  Serial.begin(9600);
+  sCmd.addCommand("pickanim",pickAnimation);
+  sCmd.setDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
+  Serial.println("Ready");
+}
+
+void setupAnimations() {
+  anim1_setup();
+  anim2_setup();
+}
+
+
+void unrecognized(const char *command) {
+  Serial.println("What?");
+}
+
+void pickAnimation() {
+  int aNumber;
+  char *arg;
+
+  Serial.println("We're in pickAnimation");
+  arg = sCmd.next();
+  if (arg != NULL) {
+    aNumber = atoi(arg);    // Converts a char string to an integer
+    Serial.print("First argument was: ");
+    Serial.println(aNumber);
+    if (aNumber >= 0 && aNumber < (sizeof(animations)/sizeof(animations[0]))) {
+      current_animation = aNumber;
+    } else {
+    }
+  } else {
+  }
+  Serial.println(""+current_animation);
+
+}
 
 
 void loop() {
-  
-  anim1_update();
+  sCmd.readSerial();
+  if (lightison) {
+    animations[current_animation]();
+  } else {
+    off();
+  }
   delay(16);
 }
+
+/*******************/
+
 
 
 
@@ -104,12 +168,30 @@ void copy_ccolor(int* target, int* dest) {
   dest[2] = target[2];
 }
 
+/*******************/
 
 
 
 
 
 
+
+
+
+
+/** Animation 0 - off **/
+void off() {  
+  for (int i = 1; i < NumLEDs; i++) {
+    setLED(i, 0, 0, 0);
+  }
+  WriteLEDArray();  
+}
+
+
+/*******************/
+
+
+/** Animation 1 **/
 
 float anim1_progress = 0;
 float anim1_max_progress = 1;
@@ -159,5 +241,45 @@ void anim1_update() {
   }
 }
 
+/*******************/
 
+/** Animation 2 - Solid **/
+
+
+int anim2_r = 1023;
+int anim2_g = 1023;
+int anim2_b = 1023;
+
+void anim2_setup() {
+  sCmd.addCommand("anim2_pickcolor",anim2_pickcolor);
+}
+
+void anim2_pickcolor() {
+  char *arg;
+
+  Serial.println("We're in Anim2 pickColor");
+  arg = sCmd.next();
+  if (arg != NULL) {
+    anim2_r = atoi(arg);
+  } 
+  arg = sCmd.next();
+  if (arg != NULL) {
+    anim2_g = atoi(arg);
+  } 
+  arg = sCmd.next();
+  if (arg != NULL) {
+    anim2_b = atoi(arg);
+  } 
+
+}
+
+
+void anim2_update() {  
+  for (int i = 1; i < NumLEDs; i++) {
+    setLED(i, anim2_r, anim2_g, anim2_b);
+  }
+  WriteLEDArray();  
+}
+
+/*******************/
 
