@@ -102,14 +102,18 @@ void setLED(byte LED, int red, int green, int blue)
 
 boolean lightison = true;
 int current_animation = 0;
-void(*animations[3])() = {
+void(*animations[2])() = {
   anim1_update,
   anim2_update,
 };
+int num_animations = sizeof(animations)/sizeof(animations[0]);
 
 void setupSerialCommands() {
-  Serial.begin(9600);
+  Serial.begin(57600);
   sCmd.addCommand("pickanim",pickAnimation);
+  sCmd.addCommand("turnon",turnOn);
+  sCmd.addCommand("turnoff",turnOff);
+  sCmd.addCommand("getstate",getState);
   sCmd.setDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
   Serial.println("Ready");
 }
@@ -128,22 +132,39 @@ void pickAnimation() {
   int aNumber;
   char *arg;
 
-  Serial.println("We're in pickAnimation");
+  //Serial.println("We're in pickAnimation");
   arg = sCmd.next();
   if (arg != NULL) {
     aNumber = atoi(arg);    // Converts a char string to an integer
-    Serial.print("First argument was: ");
-    Serial.println(aNumber);
-    if (aNumber >= 0 && aNumber < (sizeof(animations)/sizeof(animations[0]))) {
+    //Serial.print("First argument was: ");
+    //Serial.println(aNumber);
+    if (aNumber >= 0 && aNumber < num_animations) {
       current_animation = aNumber;
     } else {
     }
   } else {
   }
-  Serial.println(""+current_animation);
+  Serial.println(current_animation);
 
 }
 
+void turnOn() {
+  lightison = true;
+}
+
+void turnOff() {
+  lightison = false;
+}
+
+void getState() {
+  Serial.print("{ 'on':");
+  Serial.print(lightison);
+  Serial.print(", 'animation':");
+  Serial.print(current_animation);
+  Serial.print(", 'num_animations':");
+  Serial.print(num_animations);
+  Serial.print("}\n");
+}
 
 void loop() {
   sCmd.readSerial();
@@ -215,6 +236,23 @@ float anim1_speed = 0.002;
 void anim1_setup() {
   copy_ccolor(anim1_colors[0], anim1_previous_color);
   copy_ccolor(anim1_colors[1], anim1_target_color);
+  sCmd.addCommand("anim1_setspeed",anim1_setspeed);
+}
+
+
+/** anim1_setspeed INT from 0 to 10000  **/
+void anim1_setspeed() {
+  char *arg;
+  int newspeed;
+
+  Serial.println("We're in Anim1 setSpeed");
+  arg = sCmd.next();
+  if (arg != NULL) {
+    newspeed = atoi(arg);
+    Serial.println(newspeed);
+    anim1_speed = newspeed/10000.0;
+  } 
+
 }
 
 
@@ -254,6 +292,7 @@ void anim2_setup() {
   sCmd.addCommand("anim2_pickcolor",anim2_pickcolor);
 }
 
+/** anim2_pickcolor INT INT INT from 0 to 1023  **/
 void anim2_pickcolor() {
   char *arg;
 
