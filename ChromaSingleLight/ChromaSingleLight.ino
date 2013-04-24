@@ -102,9 +102,9 @@ void setLED(byte LED, int red, int green, int blue)
 
 boolean lightison = true;
 int current_animation = 0;
-void(*animations[2])() = {
-  anim1_update,
-  anim2_update,
+void(*animations[2][3])() = {
+  {anim1_setup,anim1_update,anim1_getinfo},
+  {anim2_setup,anim2_update,anim2_getinfo}
 };
 int num_animations = sizeof(animations)/sizeof(animations[0]);
 
@@ -114,6 +114,8 @@ void setupSerialCommands() {
   sCmd.addCommand("turnon",turnOn);
   sCmd.addCommand("turnoff",turnOff);
   sCmd.addCommand("getstate",getState);
+  sCmd.addCommand("getinfo",getinfo);
+  sCmd.addCommand("getallinfo",getAllInfo);
   sCmd.setDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
   Serial.println("Ready");
 }
@@ -150,10 +152,12 @@ void pickAnimation() {
 
 void turnOn() {
   lightison = true;
+  Serial.println("on");
 }
 
 void turnOff() {
   lightison = false;
+  Serial.println("off");
 }
 
 void getState() {
@@ -166,10 +170,27 @@ void getState() {
   Serial.print("}\n");
 }
 
+void getinfo() {
+  char *arg = sCmd.next();
+  if (arg != NULL) {
+    int aNumber = atoi(arg);    // Converts a char string to an integer
+    if (aNumber >= 0 && aNumber < num_animations) {
+      animations[aNumber][2]();
+    }
+  } 
+}
+
+void getAllInfo() {
+  for (int i=0; i<num_animations; i++) {
+    animations[i][2]();
+  }
+}
+
+
 void loop() {
   sCmd.readSerial();
   if (lightison) {
-    animations[current_animation]();
+    animations[current_animation][1]();
   } else {
     off();
   }
@@ -239,6 +260,10 @@ void anim1_setup() {
   sCmd.addCommand("anim1_setspeed",anim1_setspeed);
 }
 
+void anim1_getinfo() {
+  Serial.print("{ 'name':'Random Fading Lights', 'commands':['anim1_setspeed'] }\n");
+}
+
 
 /** anim1_setspeed INT from 0 to 10000  **/
 void anim1_setspeed() {
@@ -290,6 +315,10 @@ int anim2_b = 1023;
 
 void anim2_setup() {
   sCmd.addCommand("anim2_pickcolor",anim2_pickcolor);
+}
+
+void anim2_getinfo() {
+  Serial.print("{ 'name':'Solid Light', 'commands':['anim2_pickcolor'] }\n");
 }
 
 /** anim2_pickcolor INT INT INT from 0 to 1023  **/
